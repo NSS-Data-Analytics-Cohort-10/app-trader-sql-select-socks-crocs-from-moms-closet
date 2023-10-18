@@ -3,26 +3,27 @@ FROM app_store_apps
 GROUP BY name
 ORDER BY lifespan_years DESC
 
-
+--STILL WORKING ON THIS
 -- inner join names, average rating and rating per store, lifespan
-SELECT DISTINCT(name), app_store_apps.rating, play_store_apps.rating, ((app_store_apps.rating + play_store_apps.rating) / 2) as combined_rating, (2*((app_store_apps.rating + play_store_apps.rating) / 2)/2*2+1) as lifespan
-FROM app_store_apps 
-INNER JOIN play_store_apps 
-USING (name)
-ORDER BY name ASC	
-	
--- other avg rating between both, 
-(apple.rating + IFNULL(play.rating, 0)) / (1 + (b.app_title IS NOT NULL)) AS avg_rating
-	
-	
-	
-	
-	
-SELECT DISTINCT(name), app_store_apps.rating, play_store_apps.rating, (ROUND(2 * avg(rating))/2*2+1) as lifespan_years
-FROM app_store_apps
-INNER JOIN play_store_apps
+SELECT (name), app_store_apps.rating, play_store_apps.rating, app_store_apps.review_count, play_store_apps.review_count, ((app_store_apps.rating + play_store_apps.rating) / 2) as combined_rating, (2*((app_store_apps.rating + play_store_apps.rating) / 2)/2*2+1) as lifespan
+FROM play_store_apps
+inner join  app_store_apps 
 USING (name)
 ORDER BY name ASC
+
+SELECT DISTINCT(name), app_store_apps.rating, play_store_apps.rating, ((app_store_apps.rating + play_store_apps.rating) / 2) as combined_rating, (2*((app_store_apps.rating + play_store_apps.rating) / 2)/2*2+1) as lifespan
+FROM play_store_apps
+inner join  app_store_apps 
+USING (name)
+ORDER BY name ASC
+
+
+	
+	
+	
+	
+	
+
 
 --- how to get numbers from the string in the app store
 SELECT
@@ -35,3 +36,10 @@ SELECT
         app_store_apps a
     INNER JOIN
         play_store_apps b ON a.name = b.name
+		
+-- Working on getting a total purchase price, this is head stuff, not meant to be run
+(lifespan_years * 12 * 5000 - (lifespan_years * 12 * 1000)) / 10) * 10 AS total_revenue
+
+
+
+
