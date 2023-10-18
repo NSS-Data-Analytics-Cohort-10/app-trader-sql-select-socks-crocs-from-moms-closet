@@ -60,7 +60,7 @@
 
 SELECT DISTINCT (name), 
 	a.price, 
-	p.price
+ 	p.price
 	AVG(a.rating + p.rating) OVER () AS avg_rating
 FROM app_store_apps a
 INNER JOIN play_store_apps p
@@ -83,14 +83,42 @@ INNER JOIN play_store_apps p
 USING (name)
 --a: 22 a.genre, 57 p.genre
 
+--SEAN'S RATING, LIFESPAN 
+--I ADDED GENRE AND PRICING ** WANT TO CHANGE AND COLLECT CONTENT RATING FOR GENRES
 SELECT DISTINCT(name),
-	app_store_apps.rating, 
-	play_store_apps.rating, 
+--	app_store_apps.rating, 
+--	play_store_apps.rating, 
 	ROUND(((app_store_apps.rating + play_store_apps.rating) / 2),1) as combined_rating, 
-	ROUND(2*((app_store_apps.rating + play_store_apps.rating) / 2)/2*2+1,2) as lifespan,
+	ROUND((2*((app_store_apps.rating + play_store_apps.rating) / 2)/2*2+1),2) as lifespan,
 	app_store_apps.primary_genre,
-	RANK() OVER(((app_store_apps.rating + play_store_apps.rating) / 2)) as comb_rating_rank
-FROM app_store_apps
-INNER JOIN play_store_apps
+	app_store_apps.price,
+	play_store_apps.price
+--	
+--	RANK() OVER(((app_store_apps.rating + play_store_apps.rating) / 2)) as comb_rating_rank
+--cant get rank above to work
+FROM app_store_apps 
+INNER JOIN play_store_apps 
 USING (name)
-ORDER BY name ASC
+ORDER BY combined_rating DESC
+
+--SEAN'S SYNICING OF PRICES
+SELECT
+    price,
+    CAST(REPLACE(REPLACE(price, '$', ''), ',', '') AS DECIMAL(5, 2)) AS price_numeric
+FROM play_store_apps
+ORDER BY price_numeric DESC
+
+---
+SELECT DISTINCT(name),
+	ROUND(((a.rating + p.rating) / 2),1) as combined_rating, 
+	ROUND((2*((a.rating + p.rating) / 2)/2*2+1),2) as lifespan,
+	a.primary_genre AS a_genre,
+	p.genres AS p_genre,
+	a.content_rating AS a_content_rating,
+	p.content_rating AS p_content_rating,
+	 CAST(REPLACE(REPLACE(p.price, '$', ''), ',', '') AS DECIMAL(5, 2)) AS price_numeric
+FROM play_store_apps p
+LEFT JOIN app_store_apps a
+USING (name)
+WHERE primary_genre IS NOT NULL
+ORDER BY combined_rating DESC
