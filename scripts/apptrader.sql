@@ -5,9 +5,9 @@ ORDER BY lifespan_years DESC
 
 
 -- inner join names, average rating and rating per store
-SELECT DISTINCT(name), app_store_apps.rating, play_store_apps.rating, ((app_store_apps.rating + play_store_apps.rating) / 2) as combined_rating	
+SELECT DISTINCT(name), app_store_apps.rating, play_store_apps.rating, ((app_store_apps.rating + play_store_apps.rating) / 2) as combined_rating, (2*((app_store_apps.rating + play_store_apps.rating) / 2)/2*2+1) as lifespan
 FROM app_store_apps
-INNER JOIN play_store_apps
+INNER JOIN play_store_apps 
 USING (name)
 ORDER BY name ASC	
 	
