@@ -120,8 +120,8 @@ USING (name)
 WHERE primary_genre IS NOT NULL
 ORDER BY price_numeric DESC
 
---CTE of sum of review counts
-select total_review AS
+--try to make sum of review counts
+select 
 	COALESCE(CAST(a.review_count AS int),'0') AS a_review_count_num,
 --	COALESCE(a.review_count,'0'),
 	p.review_count AS p_review_count,
@@ -131,3 +131,75 @@ LEFT JOIN app_store_apps a
 USING (name)
 WHERE (CAST(a.review_count AS int) + p.review_count >=100)
 ORDER BY sum_review DESC
+
+--add to previous statement
+
+SELECT
+    DISTINCT(name),
+	ROUND(((a.rating + p.rating) / 2),1) as combined_rating, 
+	ROUND((2*((a.rating + p.rating) / 2)/2*2+1),2) as lifespan,
+	a.primary_genre AS a_genre,
+	p.genres AS p_genre,
+	a.content_rating AS a_content_rating,
+	p.content_rating AS p_content_rating,
+	(COALESCE(CAST(a.review_count AS int),'0') + p.review_count) AS total_review,
+	CAST(AVG(CAST(REPLACE(REPLACE(p.price, '$', ''), ',', '') AS DECIMAL(5, 2)) +
+	a.price) OVER () AS money) AS avg_price
+FROM play_store_apps p
+LEFT JOIN app_store_apps a
+USING (name)
+WHERE primary_genre IS NOT NULL
+	AND (CAST(a.review_count AS int) + p.review_count >=100)
+ORDER BY combined_rating DESC
+
+--- make 1 rating column
+SELECT p.name,
+	CASE WHEN a.content_rating = '4+' THEN 'Everyone'
+	WHEN a.content_rating = '9+' THEN 'Everyone'
+	WHEN a.content_rating = '12+' THEN 'Teen'
+	WHEN a.content_rating = '17+' THEN 'Teen'
+	END AS new_content_rating
+FROM play_store_apps p
+LEFT JOIN app_store_apps a
+USING (name)
+order by new_content_rating
+
+select distinct(p.content_rating), a.content_rating
+FROM play_store_apps p
+LEFT JOIN app_store_apps a
+USING (name)
+WHERE (COALESCE(CAST(a.review_count AS int),'0') + p.review_count) >=50000
+
+--join with running table
+WITH total_rating AS (
+	SELECT
+	p.name,
+	CASE WHEN a.content_rating = '4+' THEN 'Everyone'
+	WHEN a.content_rating = '9+' THEN 'Everyone'
+	WHEN a.content_rating = '12+' THEN 'Teen'
+	WHEN a.content_rating = '17+' THEN 'Teen'
+	END AS new_content_rating
+FROM play_store_apps p
+LEFT JOIN app_store_apps a
+	USING (name)
+)
+SELECT
+    DISTINCT(name),
+	ROUND(((a.rating + p.rating) / 2),1) as combined_rating, 
+	ROUND((2*((a.rating + p.rating) / 2)/2*2+1),2) as lifespan,
+	a.primary_genre AS a_genre,
+	p.genres AS p_genre,
+--	a.content_rating AS a_content_rating,
+--	p.content_rating AS p_content_rating,
+	new_content_rating,
+	(COALESCE(CAST(a.review_count AS int),'0') + p.review_count) AS total_review,
+	CAST(AVG(CAST(REPLACE(REPLACE(p.price, '$', ''), ',', '') AS DECIMAL(5, 2)) +
+	a.price) OVER () AS money) AS avg_price
+FROM play_store_apps p
+LEFT JOIN app_store_apps a
+	USING (name)
+LEFT JOIN total_rating
+	USING (name)
+WHERE primary_genre IS NOT NULL
+	AND (CAST(a.review_count AS int) + p.review_count >=100)
+ORDER BY combined_rating DESC
