@@ -111,8 +111,7 @@ SELECT
 	a.content_rating AS a_content_rating,
 	p.content_rating AS p_content_rating,
 	CAST(a.review_count AS int) AS a_review_count_num,
-	p.review_count,
---	p.review_count AS p_review_count,
+	p.review_count AS p_review_count,
 	CAST(REPLACE(REPLACE(p.price, '$', ''), ',', '') AS DECIMAL(5, 2)) AS price_numeric,
 	a.price
 FROM play_store_apps p
@@ -121,7 +120,14 @@ USING (name)
 WHERE primary_genre IS NOT NULL
 ORDER BY price_numeric DESC
 
----MY ADDITIONS TO SEAN'S AS AN EDA
- NULL
-ORDER BY combined_rating DESC
- 
+--CTE of sum of review counts
+select total_review AS
+	COALESCE(CAST(a.review_count AS int),'0') AS a_review_count_num,
+--	COALESCE(a.review_count,'0'),
+	p.review_count AS p_review_count,
+	(COALESCE(CAST(a.review_count AS int),'0') + p.review_count) AS sum_review
+FROM play_store_apps p
+LEFT JOIN app_store_apps a
+USING (name)
+WHERE (CAST(a.review_count AS int) + p.review_count >=100)
+ORDER BY sum_review DESC
