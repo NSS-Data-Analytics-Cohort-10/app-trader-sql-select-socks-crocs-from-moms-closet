@@ -58,14 +58,14 @@
 
 -- updated 2/18/2023
 
-SELECT DISTINCT (name), 
+SELECT distinct name, 
 	a.price, 
- 	p.price
+ 	p.price,
 	AVG(a.rating + p.rating) OVER () AS avg_rating
 FROM app_store_apps a
 INNER JOIN play_store_apps p
 USING (name)
-GROUP BY name
+--GROUP BY name
 ORDER BY avg_rating desc
 
 -- SELECT name, 
@@ -103,22 +103,25 @@ ORDER BY combined_rating DESC
 
 --SEAN'S SYNICING OF PRICES
 SELECT
-    price,
-    CAST(REPLACE(REPLACE(price, '$', ''), ',', '') AS DECIMAL(5, 2)) AS price_numeric
-FROM play_store_apps
-ORDER BY price_numeric DESC
-
----
-SELECT DISTINCT(name),
+    DISTINCT(name),
 	ROUND(((a.rating + p.rating) / 2),1) as combined_rating, 
 	ROUND((2*((a.rating + p.rating) / 2)/2*2+1),2) as lifespan,
 	a.primary_genre AS a_genre,
 	p.genres AS p_genre,
 	a.content_rating AS a_content_rating,
 	p.content_rating AS p_content_rating,
-	 CAST(REPLACE(REPLACE(p.price, '$', ''), ',', '') AS DECIMAL(5, 2)) AS price_numeric
+	CAST(a.review_count AS int) AS a_review_count_num,
+	p.review_count,
+--	p.review_count AS p_review_count,
+	CAST(REPLACE(REPLACE(p.price, '$', ''), ',', '') AS DECIMAL(5, 2)) AS price_numeric,
+	a.price
 FROM play_store_apps p
 LEFT JOIN app_store_apps a
 USING (name)
 WHERE primary_genre IS NOT NULL
+ORDER BY price_numeric DESC
+
+---MY ADDITIONS TO SEAN'S AS AN EDA
+ NULL
 ORDER BY combined_rating DESC
+ 
