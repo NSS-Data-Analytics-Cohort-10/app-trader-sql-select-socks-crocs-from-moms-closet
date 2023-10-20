@@ -94,9 +94,16 @@ revenues AS (
         ROUND(10000 * CASE WHEN max_price <= 1 THEN 1 ELSE max_price END / 10) * 10 AS purchase_price
     FROM
         lifespan
+
 )
+		app.rating AS apple_rating,
+        play.rating AS android_rating,
+		app.review_count as apple_review_count,
 SELECT
     DISTINCT(name),
+	app.rating AS apple_rating,
+    play.rating AS android_rating,
+	app.review_count as apple_review_count,
     purchase_price,
     total_revenue,
     ROUND((total_revenue - purchase_price) / 10) * 10 AS net_profit
@@ -107,5 +114,55 @@ ORDER BY
     net_profit DESC
 -- LIMIT 10;
 
+----- Big one with review counts, does not work
+WITH combined_apps AS (
+    SELECT
+        app.name,
+        app.price AS apple_price,
+        CAST(REGEXP_REPLACE(play.price, '[^0-9.]', '', 'g') AS NUMERIC) AS android_price,
+        app.rating AS apple_rating,
+        play.rating AS android_rating,
+		
+		CAST(REGEXP_REPLACE(app.review_count, '[^0-9.]', '', 'g') AS NUMERIC) AS apple_review_count
+	
+    FROM
+       play_store_apps AS play  
+    LEFT JOIN
+       app_store_apps AS app ON play.name = app.name
+	
+),
+normalized_apps AS (
+    SELECT
+        name,
+        GREATEST(apple_price, COALESCE(android_price, 0)) AS max_price,
+        (apple_rating + COALESCE(android_rating, 0)) / 2 AS avg_rating
+    FROM
+        combined_apps
+),
+lifespan AS (
+    SELECT
+        *,
+        ROUND(2 * avg_rating) / 2 * 2 + 1 AS lifespan_years
+    FROM
+        normalized_apps
+),
+revenues AS (
+    SELECT
+        name,
+        ROUND((lifespan_years * 12 * 5000 - (lifespan_years * 12 * 1000)) / 10) * 10 AS total_revenue,
+        ROUND(10000 * CASE WHEN max_price <= 1 THEN 1 ELSE max_price END / 10) * 10 AS purchase_price
+    FROM
+        lifespan
+)
+SELECT
+    DISTINCT(rev.name),
+    purchase_price,
+    total_revenue,
+    ROUND((total_revenue - purchase_price) / 10) * 10 AS net_profit,
+	(COALESCE(CAST(app.review_count AS int),'0') + play.review_count) AS total_review
+FROM
+    revenues rev
+INNER JOIN play_store_apps play
+	ON rev.NAME = play.name
 
 
