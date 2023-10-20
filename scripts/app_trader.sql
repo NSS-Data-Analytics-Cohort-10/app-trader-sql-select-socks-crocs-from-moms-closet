@@ -27,33 +27,65 @@
 
 -- e. App Trader would prefer to work with apps that are available in both the App Store and the Play Store since they can market both for the same $1000 per month.
 
-select a.name, a.price, p.price
 
-from app_store_apps as a
-inner join play_store_apps as p
+WITH combined_apps AS (
+    SELECT
+        app.name,
+        app.price AS apple_price,
+        CAST(REGEXP_REPLACE(play.price, '[^0-9.]', '', 'g') AS NUMERIC) AS android_price,
+        app.rating AS apple_rating,
+        play.rating AS android_rating,
+		app.review_count as apple_review_count,
+		CAST(REGEXP_REPLACE(app.review_count, '[^0-9.]', '', 'g') AS NUMERIC) AS apple_review_count
+    FROM
+        app_store_apps AS app
+    INNER JOIN
+        play_store_apps play ON app.name = play.name
+),
+normalized_apps AS (
+    SELECT
+        name,
+        GREATEST(apple_price, COALESCE(android_price, 0)) AS max_price,
+        (apple_rating + COALESCE(android_rating, 0)) / 2 AS avg_rating
+    FROM
+        combined_apps
+),
+lifespan AS (
+    SELECT
+        *,
+        ROUND(2 * avg_rating) / 2 * 2 + 1 AS lifespan_years
+    FROM
+        normalized_apps
+),
+revenues AS (
+    SELECT
+        name,
+        ROUND((lifespan_years * 12 * 10000 - (lifespan_years * 12 * 1000)) / 10) * 10 AS total_revenue,
+        ROUND(10000 * CASE WHEN max_price <= 1 THEN 1 ELSE max_price END / 10) * 10 AS purchase_price
+    FROM
+        lifespan
+)
+SELECT
+    distinct name,
+    cast(purchase_price as money),
+    cast(total_revenue as money),
+    cast(ROUND((total_revenue - purchase_price) / 10) * 10 as money) AS net_profit,
+	lifespan_years,
+	normalized_apps.avg_rating
+FROM
+    revenues
+inner join lifespan
 using (name)
-where a.name = p.name
-group by a.name, a.price, p.price
-order by a.price desc
-
-
-with fixed_price as
-(SELECT
-    price,
-    CAST(REPLACE(REPLACE(price, '$', ''), ',', '') AS DECIMAL(5, 2)) AS price_numeric
-FROM play_store_apps)
-
-
-
-
-select a.name, a.price, fixed_price.price_numeric
-from app_store_apps as a
-inner join play_store_apps as p
+inner join normalized_apps
 using (name)
-where a.name = p.name
-group by a.name, a.price, fixed_price.price_numeric
-order by a.price desc
+ORDER BY
+    net_profit DESC
+LIMIT 10;
 
+
+--add if app is on both app stores
+--add marketing cost
+--add lifespan
 
 --1. determine the purchase price of the app
 --2. determine if app is on both app stores (use inner joing)
@@ -63,21 +95,15 @@ order by a.price desc
 --revenue on app
 
 
-SELECT name, app_store_apps.rating, play_store_apps.rating, ((app_store_apps.rating + play_store_apps.rating) / 2) as combined_rating, (2*((app_store_apps.rating + play_store_apps.rating) / 2)/2*2+1) as lifespan, app_store_apps.price, play_store_apps.price
-FROM play_store_apps
-INNER JOIN app_store_apps
-USING (name)
-ORDER BY name desc
+select a.name, a.price as app_price, CAST(REPLACE(REPLACE(p.price, '$', ''), ',', '') AS DECIMAL(5, 2)) AS price_numeric, a.rating as app_rating, p.rating as play_rating
 
-select *
-from app_store_apps
-where name ilike '%zombie%'
-order by name desc
+from app_store_apps a
+inner join play_store_apps p
+using (name)
+where a.price between 0 and 1 or  CAST(REPLACE(REPLACE(p.price, '$', ''), ',', '') AS DECIMAL(5, 2)) between 0 and 1
+and a.rating=5.0 or p.rating=5.0
+order by a.rating desc, p.rating desc
 
-select *
-from play_store_apps
-where name ilike '%facebook%'
-order by name desc
 -- #### 3. Deliverables
 
 -- a. Develop some general recommendations as to the price range, genre, content rating, or anything else for apps that the company should target.
@@ -87,5 +113,7 @@ order by name desc
 -- c. Submit a report based on your findings. All analysis work must be done using PostgreSQL, however you may export query results to create charts in Excel for your report. 
 
 
-
+select 
+case when name in app_store_apps and play_store_apps then ROUND((lifespan_years * 12 * 10000 - (lifespan_years * 12 * 1000)) / 10) * 10 AS total_revenue,
+when ROUND((lifespan_years * 12 * 5000 - (lifespan_years * 12 * 1000)) / 10) * 10 AS total_revenue
 
