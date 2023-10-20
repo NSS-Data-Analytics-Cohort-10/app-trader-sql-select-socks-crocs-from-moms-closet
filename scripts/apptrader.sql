@@ -166,7 +166,7 @@ INNER JOIN play_store_apps play
 	ON rev.NAME = play.name
 ----------------------
 
---LATEST WORKING
+--LATEST WORKING 8:49pm 
 WITH combined_apps AS (
 	SELECT
         play.name,
@@ -199,7 +199,7 @@ lifespan AS (
 revenues AS (
     SELECT
         name,
-        ROUND((lifespan_years * 12 * 5000 - (lifespan_years * 12 * 1000)) / 10) * 10 AS total_revenue,
+        ROUND((lifespan_years * 12 * 10000 - (lifespan_years * 12 * 1000)) / 10) * 10 AS total_revenue,
         ROUND(10000 * CASE WHEN max_price <= 1 THEN 1 ELSE max_price END / 10) * 10 AS purchase_price
     FROM
         lifespan
