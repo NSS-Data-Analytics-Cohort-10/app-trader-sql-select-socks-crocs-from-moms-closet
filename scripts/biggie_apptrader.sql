@@ -7,7 +7,9 @@ WITH combined_apps AS (
 		app.price AS apple_price,
 		app.rating AS apple_rating,	
 		primary_genre,
-		CAST(REGEXP_REPLACE(app.review_count, '[^0-9.]', '', 'g') AS NUMERIC) AS apple_review_count,
+		install_count,
+-- 		round(((apple_rating + COALESCE(android_rating, 0)) / 2)*2,0)/2 AS avg_rating,
+		CAST(REGEXP_REPLACE(app.review_count, '[^0-9.]', '', 'g') AS NUMERIC) AS apple_review_count, CAST(REGEXP_REPLACE(play.install_count, '[^0-9.]', '', 'g') AS NUMERIC) AS installs,
 	
 	CASE WHEN app.content_rating = '4+' THEN 'Everyone'
 	WHEN app.content_rating = '9+' THEN 'Everyone'
@@ -23,7 +25,7 @@ normalized_apps AS (
     SELECT
         name,
         GREATEST(apple_price, COALESCE(android_price, 0)) AS max_price,
-        (apple_rating + COALESCE(android_rating, 0)) / 2 AS avg_rating
+        round(((apple_rating + COALESCE(android_rating, 0)) / 2)*2,0)/2 AS avg_rating
     FROM
         combined_apps
 ),
@@ -42,7 +44,7 @@ revenues AS (
     FROM
         lifespan
 )
-SELECT DISTINCT(name), android_price, android_rating, max(android_review_count) as max_android_review_count, apple_price, apple_rating, apple_review_count, lifespan_years, normalized_apps.max_price, normalized_apps.avg_rating, total_revenue, purchase_price, content_rating, COALESCE(ROUND((total_revenue - purchase_price) / 10),0) * 10 AS net_profit, primary_genre,
+SELECT DISTINCT(name), android_price, android_rating, max(android_review_count) as max_android_review_count, apple_price, apple_rating, apple_review_count, lifespan_years, normalized_apps.max_price, normalized_apps.avg_rating, total_revenue, purchase_price, content_rating, COALESCE(ROUND((total_revenue - purchase_price) / 10),0) * 10 AS net_profit, primary_genre, installs,
 	CASE
 		WHEN android_rating > 0 AND apple_rating > 0 THEN 'Both Stores'
 		ELSE 'One Store'
@@ -54,8 +56,8 @@ LEFT JOIN normalized_apps
 USING (name)
 LEFT JOIN revenues
 USING (name)
-GROUP BY android_price, android_rating, apple_price, apple_rating, apple_review_count, lifespan_years, normalized_apps.max_price, normalized_apps.avg_rating, total_revenue, purchase_price, combined_apps.name, content_rating, primary_genre
-ORDER BY net_profit DESC
+GROUP BY android_price, android_rating, apple_price, apple_rating, apple_review_count, lifespan_years, normalized_apps.max_price, normalized_apps.avg_rating, total_revenue, purchase_price, combined_apps.name, content_rating, primary_genre, installs
+ORDER BY net_profit DESC, installs DESC
 
 
 
