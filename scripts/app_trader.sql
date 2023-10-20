@@ -28,25 +28,40 @@
 -- e. App Trader would prefer to work with apps that are available in both the App Store and the Play Store since they can market both for the same $1000 per month.
 
 
+
+-- #### 3. Deliverables
+
+-- a. Develop some general recommendations as to the price range, genre, content rating, or anything else for apps that the company should target.
+
+-- b. Develop a Top 10 List of the apps that App Trader should buy.
+
+-- c. Submit a report based on your findings. All analysis work must be done using PostgreSQL, however you may export query results to create charts in Excel for your report. 
+
 WITH combined_apps AS (
-    SELECT
-        app.name,
-        app.price AS apple_price,
+	SELECT
+        play.name,
         CAST(REGEXP_REPLACE(play.price, '[^0-9.]', '', 'g') AS NUMERIC) AS android_price,
-        app.rating AS apple_rating,
-        play.rating AS android_rating,
-		app.review_count as apple_review_count,
-		CAST(REGEXP_REPLACE(app.review_count, '[^0-9.]', '', 'g') AS NUMERIC) AS apple_review_count
-    FROM
-        app_store_apps AS app
-    INNER JOIN
-        play_store_apps play ON app.name = play.name
+     	play.rating AS android_rating,
+		play.review_count AS android_review_count,
+		app.price AS apple_price,
+		app.rating AS apple_rating,
+		primary_genre as genre,
+		CAST(REGEXP_REPLACE(app.review_count, '[^0-9.]', '', 'g') AS NUMERIC) AS apple_review_count,
+		CASE WHEN app.content_rating = '4+' THEN 'Everyone'
+		WHEN app.content_rating = '9+' THEN 'Everyone'
+		WHEN app.content_rating = '12+' THEN 'Teen'
+		WHEN app.content_rating = '17+' THEN 'Teen'
+	END AS content_rating
+	FROM
+        play_store_apps AS play
+    LEFT JOIN
+        app_store_apps AS app ON app.name = play.name
 ),
 normalized_apps AS (
     SELECT
         name,
         GREATEST(apple_price, COALESCE(android_price, 0)) AS max_price,
-        (apple_rating + COALESCE(android_rating, 0)) / 2 AS avg_rating
+       round(((apple_rating + COALESCE(android_rating, 0)) / 2)*2,0)/2 AS avg_rating
     FROM
         combined_apps
 ),
@@ -65,55 +80,20 @@ revenues AS (
     FROM
         lifespan
 )
-SELECT
-    distinct name,
-    cast(purchase_price as money),
-    cast(total_revenue as money),
-    cast(ROUND((total_revenue - purchase_price) / 10) * 10 as money) AS net_profit,
-	lifespan_years,
-	normalized_apps.avg_rating
-FROM
-    revenues
-inner join lifespan
-using (name)
-inner join normalized_apps
-using (name)
-ORDER BY
-    net_profit DESC
-LIMIT 10;
+SELECT DISTINCT(name), cast(android_price as money), android_rating, max(android_review_count) as android_review_count, cast(apple_price as money), apple_rating, max(apple_review_count) as apple_review_count, content_rating, genre, lifespan_years, cast(normalized_apps.max_price as money), normalized_apps.avg_rating, cast(total_revenue as money), cast(purchase_price as money), cast(COALESCE(ROUND((total_revenue - purchase_price) / 10),0) * 10 as money) AS net_profit,
+	CASE
+		WHEN android_rating > 0 AND apple_rating > 0 THEN 'Both Stores'
+		ELSE 'One Store'
+	END AS store_count
+FROM combined_apps
+LEFT JOIN lifespan
+USING (name)
+LEFT JOIN normalized_apps
+USING (name)
+LEFT JOIN revenues
+USING (name)
+group by distinct name, android_price, android_rating, apple_price, apple_rating, content_rating, genre, lifespan_years, normalized_apps.max_price, normalized_apps.avg_rating, total_revenue, purchase_price,net_profit,store_count
+ORDER BY net_profit DESC
+limit 10
 
-
---add if app is on both app stores
---add marketing cost
---add lifespan
-
---1. determine the purchase price of the app
---2. determine if app is on both app stores (use inner joing)
---3. cost to market
---4. lifespan of the app 
---5. roi over 5 years?
---revenue on app
-
-
-select a.name, a.price as app_price, CAST(REPLACE(REPLACE(p.price, '$', ''), ',', '') AS DECIMAL(5, 2)) AS price_numeric, a.rating as app_rating, p.rating as play_rating
-
-from app_store_apps a
-inner join play_store_apps p
-using (name)
-where a.price between 0 and 1 or  CAST(REPLACE(REPLACE(p.price, '$', ''), ',', '') AS DECIMAL(5, 2)) between 0 and 1
-and a.rating=5.0 or p.rating=5.0
-order by a.rating desc, p.rating desc
-
--- #### 3. Deliverables
-
--- a. Develop some general recommendations as to the price range, genre, content rating, or anything else for apps that the company should target.
-
--- b. Develop a Top 10 List of the apps that App Trader should buy.
-
--- c. Submit a report based on your findings. All analysis work must be done using PostgreSQL, however you may export query results to create charts in Excel for your report. 
-
-
-select 
-case when name in app_store_apps and play_store_apps then ROUND((lifespan_years * 12 * 10000 - (lifespan_years * 12 * 1000)) / 10) * 10 AS total_revenue,
-when ROUND((lifespan_years * 12 * 5000 - (lifespan_years * 12 * 1000)) / 10) * 10 AS total_revenue
 
