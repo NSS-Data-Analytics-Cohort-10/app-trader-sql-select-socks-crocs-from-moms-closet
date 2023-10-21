@@ -52,7 +52,7 @@ WITH combined_apps AS (
 		CASE WHEN app.content_rating = '4+' THEN 'Everyone'
 		WHEN app.content_rating = '9+' THEN 'Everyone'
 		WHEN app.content_rating = '12+' THEN 'Teen'
-		WHEN app.content_rating = '17+' THEN 'Teen'
+		WHEN app.content_rating = '17+' THEN 'Age 17 and up'
 	END AS content_rating
 	FROM
         play_store_apps AS play
