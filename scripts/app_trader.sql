@@ -46,7 +46,9 @@ WITH combined_apps AS (
 		app.price AS apple_price,
 		app.rating AS apple_rating,
 		primary_genre as genre,
+		install_count,
 		CAST(REGEXP_REPLACE(app.review_count, '[^0-9.]', '', 'g') AS NUMERIC) AS apple_review_count,
+		CAST(REGEXP_REPLACE(play.install_count, '[^0-9.]', '', 'g') AS NUMERIC) AS play_install_count,
 		CASE WHEN app.content_rating = '4+' THEN 'Everyone'
 		WHEN app.content_rating = '9+' THEN 'Everyone'
 		WHEN app.content_rating = '12+' THEN 'Teen'
@@ -80,7 +82,7 @@ revenues AS (
     FROM
         lifespan
 )
-SELECT DISTINCT(name), cast(android_price as money), android_rating, max(android_review_count) as android_review_count, cast(apple_price as money), apple_rating, max(apple_review_count) as apple_review_count, content_rating, genre, lifespan_years, cast(normalized_apps.max_price as money), normalized_apps.avg_rating, cast(total_revenue as money), cast(purchase_price as money), cast(COALESCE(ROUND((total_revenue - purchase_price) / 10),0) * 10 as money) AS net_profit,
+SELECT DISTINCT(name), cast(android_price as money), android_rating, max(android_review_count) as android_review_count, cast(apple_price as money), apple_rating, max(apple_review_count) as apple_review_count, content_rating, genre, lifespan_years, cast(normalized_apps.max_price as money), normalized_apps.avg_rating, cast(total_revenue as money), cast(purchase_price as money), cast(COALESCE(ROUND((total_revenue - purchase_price) / 10),0) * 10 as money) AS net_profit,  install_count, play_install_count,
 	CASE
 		WHEN android_rating > 0 AND apple_rating > 0 THEN 'Both Stores'
 		ELSE 'One Store'
@@ -92,8 +94,7 @@ LEFT JOIN normalized_apps
 USING (name)
 LEFT JOIN revenues
 USING (name)
-group by distinct name, android_price, android_rating, apple_price, apple_rating, content_rating, genre, lifespan_years, normalized_apps.max_price, normalized_apps.avg_rating, total_revenue, purchase_price,net_profit,store_count
-ORDER BY net_profit DESC
-limit 10
+group by name, android_price, android_rating, apple_price, apple_rating, content_rating, genre, lifespan_years, normalized_apps.max_price, normalized_apps.avg_rating, total_revenue, purchase_price,net_profit,store_count,install_count, play_install_count
+ORDER BY net_profit DESC,play_install_count DESC
 
 
