@@ -1,19 +1,15 @@
 WITH combined_apps AS (
 	SELECT
         play.name,
-		app.primary_genre,
         CAST(REGEXP_REPLACE(play.price, '[^0-9.]', '', 'g') AS NUMERIC) AS android_price,
      	play.rating AS android_rating,
-		ROUND(play.review_count/5000*5000) AS android_review_count,
+		play.review_count AS android_review_count,
 		app.price AS apple_price,
 		app.rating AS apple_rating,
-		ROUND(CAST(REGEXP_REPLACE(app.review_count, '[^0-9.]', '', 'g') AS NUMERIC)/1000*1000) AS apple_review_count,
-		CAST(REGEXP_REPLACE(play.install_count, '[^0-9.]', '', 'g') AS NUMERIC) AS install_count,
-		CASE WHEN app.content_rating = '4+' THEN 'Everyone'
-			WHEN app.content_rating = '9+' THEN 'Everyone'
-			WHEN app.content_rating = '12+' THEN 'Teen'
-			WHEN app.content_rating = '17+' THEN 'Teen'
-			END AS content_rating
+		CAST(REGEXP_REPLACE(app.review_count, '[^0-9.]', '', 'g') AS NUMERIC) AS apple_review_count,
+		CAST(REGEXP_REPLACE(play.install_count, '[^0-9.]', '', 'g') AS NUMERIC) AS play_install_count,
+		install_count,
+		primary_genre
 	FROM
         play_store_apps AS play
     LEFT JOIN
@@ -26,6 +22,19 @@ normalized_apps AS (
 	round(((apple_rating + COALESCE(android_rating, 0)) / 2)*2,0)/2 AS avg_rating
     FROM
         combined_apps
+),
+new_content_rating AS (
+    SELECT
+        play.name,
+        CASE WHEN app.content_rating = '4+' THEN 'Everyone'
+		WHEN app.content_rating = '9+' THEN 'Everyone'
+		WHEN app.content_rating = '12+' THEN 'Teen'
+		WHEN app.content_rating = '17+' THEN 'Teen'
+		END AS new_content_rating
+	FROM
+        play_store_apps AS play
+    LEFT JOIN
+        app_store_apps AS app ON app.name = play.name
 ),
 lifespan AS (
     SELECT
@@ -42,7 +51,23 @@ revenues AS (
     FROM
         lifespan
 )
-SELECT DISTINCT(name), android_price, android_rating, android_review_count, apple_price, apple_rating, apple_review_count, install_count, primary_genre, lifespan_years, normalized_apps.max_price, normalized_apps.avg_rating, content_rating, total_revenue, purchase_price, COALESCE(ROUND((total_revenue - purchase_price) / 10),0) * 10 AS net_profit,
+SELECT DISTINCT(name), 
+	android_price, 
+	android_rating, 
+	MAX(android_review_count) AS max_android_review_count,  
+	apple_price, 
+	apple_rating, 
+	apple_review_count, 
+	play_install_count,
+	install_count, 
+	primary_genre, 
+	lifespan_years, 
+	normalized_apps.max_price, 
+	normalized_apps.avg_rating, 
+	new_content_rating, 
+	total_revenue, 
+	purchase_price, 
+	COALESCE(ROUND((total_revenue - purchase_price) / 10),0) * 10 AS net_profit,
 	CASE
 		WHEN android_rating > 0 AND apple_rating > 0 THEN 'Both Stores'
 		ELSE 'One Store'
@@ -54,7 +79,25 @@ LEFT JOIN normalized_apps
 USING (name)
 LEFT JOIN revenues
 USING (name)
-ORDER BY net_profit DESC, install_count DESC
+LEFT JOIN new_content_rating
+USING (name)
+GROUP BY name, 
+	android_price, 
+	android_rating, 
+	apple_price, 
+	apple_rating, 
+	apple_review_count, 
+	lifespan_years, 
+	normalized_apps.max_price, 
+	normalized_apps.avg_rating, 
+	total_revenue, 
+	purchase_price, 
+	net_profit, 
+	new_content_rating, 
+	primary_genre, 
+	install_count,
+	play_install_count
+ORDER BY net_profit DESC, play_install_count DESC
 --LIMIT 15;
 
 
